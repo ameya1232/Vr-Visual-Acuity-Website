@@ -1,0 +1,35 @@
+{
+    "rules": {
+        "users": {
+            ".read": "auth != null",
+            ".write": "auth != null",
+            "$userId": {
+                ".validate": "newData.hasChildren(['username', 'createdAt']) || newData.hasChildren(['username', 'createdAt', 'updatedAt'])",
+                "username": {
+                    ".validate": "newData.isString() && newData.val().length <= 32"
+                },
+                "createdAt": {
+                    ".validate": "newData.isString()"
+                },
+                "updatedAt": {
+                    ".validate": "newData.isString()"
+                },
+                "eLevel": {
+                    ".validate": "true"
+                },
+                "colorLevel": {
+                    ".validate": "true"
+                },
+                "faceLevel": {
+                    ".validate": "true"
+                },
+                "gameData": {
+                    ".validate": "true",
+                    "$child": {
+                        ".validate": "true"
+                    }
+                }
+            }
+        }
+    }
+}

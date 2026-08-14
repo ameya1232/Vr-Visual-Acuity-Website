@@ -648,6 +648,106 @@ function createUserScreen() {
 	document.getElementById("backBtn").onclick = homeScreen;
 }
 
+function normalizeClickHistory(clicks) {
+	// New Firebase records store a `clicks` collection. Depending on how
+	// Firebase serializes it, it may come back as either an Array or an
+	// object with numeric keys. Older records will not have this field at all.
+	if (Array.isArray(clicks)) {
+		return clicks.filter((click) => click && typeof click === "object");
+	}
+	if (clicks && typeof clicks === "object") {
+		return Object.keys(clicks)
+			.sort((a, b) => {
+				const aNum = Number(a);
+				const bNum = Number(b);
+				if (Number.isFinite(aNum) && Number.isFinite(bNum)) return aNum - bNum;
+				return String(a).localeCompare(String(b));
+			})
+			.map((key) => clicks[key])
+			.filter((click) => click && typeof click === "object");
+	}
+	return [];
+}
+
+function forEachIndexedGameItem(collection, callback) {
+	// Firebase can deserialize list-like data as arrays or numeric-keyed objects.
+	// This helper supports both old and new records without assuming either shape.
+	if (!collection || typeof collection !== "object") return;
+
+	if (Array.isArray(collection)) {
+		collection.forEach((item, index) => {
+			if (item && typeof item === "object") callback(item, index);
+		});
+		return;
+	}
+
+	Object.keys(collection)
+		.sort((a, b) => {
+			const aNum = Number(a);
+			const bNum = Number(b);
+			if (Number.isFinite(aNum) && Number.isFinite(bNum)) return aNum - bNum;
+			return String(a).localeCompare(String(b));
+		})
+		.forEach((key, fallbackIndex) => {
+			const item = collection[key];
+			if (!item || typeof item !== "object") return;
+			const numericKey = Number(key);
+			callback(item, Number.isFinite(numericKey) ? numericKey : fallbackIndex);
+		});
+}
+
+function formatGameValue(value, fallback = "-") {
+	if (value === undefined || value === null || value === "") return fallback;
+	if (typeof value === "number") return Number(value.toFixed(3));
+	return value;
+}
+
+function renderGameDataBox(gameData) {
+	// Legacy Firebase records may have no gameData item at all, or may not
+	// contain the newer `clicks` property. Treat those as valid old records.
+	if (!gameData || typeof gameData !== "object") return "";
+
+	const hasClickHistoryField = Object.prototype.hasOwnProperty.call(gameData, "clicks");
+	const clicks = normalizeClickHistory(gameData.clicks);
+	const scoreChange =
+		gameData.scoreChange !== undefined
+			? gameData.scoreChange
+			: gameData.ScoreChange;
+
+	const clickHistoryHtml = clicks.length
+		? `<div style="margin-top:10px;">
+			<strong>All Clicks:</strong>
+			<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+				${clicks
+					.map((click, index) => {
+						const attempt = click.attempt ?? index + 1;
+						const clickedItem = click.clickedItem || "unknown";
+						const isCorrect = click.isCorrect === true;
+						return `<div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:7px 9px;background:${
+							isCorrect ? "#eaf8ee" : "#fff0f0"
+						};border:1px solid ${isCorrect ? "#a7d8b4" : "#efb0b0"};border-radius:7px;">
+							<span><strong>#${attempt}</strong></span>
+							<span style="text-transform:capitalize;">${clickedItem}</span>
+							<span>Distance: <strong>${formatGameValue(click.distance)}</strong></span>
+							<span style="font-weight:700;">${isCorrect ? "✓ Correct" : "✗ Incorrect"}</span>
+						</div>`;
+					})
+					.join("")}
+			</div>
+		</div>`
+		: hasClickHistoryField
+			? `<div style="margin-top:8px;color:#666;font-size:0.9rem;">No per-click history was recorded for this result.</div>`
+			: `<div style="margin-top:8px;color:#666;font-size:0.9rem;">Per-click history is not available for this older result.</div>`;
+
+	return `<div class='gamedata-box' style='margin-top:6px;padding:10px;background:#f6f6f6;border-radius:6px;'>
+		<strong>Game Data:</strong><br>
+		Score Change: ${formatGameValue(scoreChange)}<br>
+		Attempts: ${formatGameValue(gameData.attempts)}<br>
+		Correct Answer Distance: ${formatGameValue(gameData.distance)}
+		${clickHistoryHtml}
+	</div>`;
+}
+
 function eLevelForm(userId = null, existingData = null) {
 	const levelForm = document.getElementById("levelForm");
 	let countValue = existingData ? existingData.length : 0;
@@ -680,19 +780,7 @@ function eLevelForm(userId = null, existingData = null) {
 					: "";
 			let gameDataHtml = "";
 			if (gameData && gameData[i]) {
-				const gd = gameData[i];
-				gameDataHtml = `<div class='gamedata-box' style='margin-top:6px;padding:6px;background:#f6f6f6;border-radius:6px;'>
-					<strong>Game Data:</strong><br>
-					Score Change: ${
-						gd.scoreChange !== undefined
-							? gd.scoreChange
-							: gd.ScoreChange !== undefined
-							? gd.ScoreChange
-							: "-"
-					}<br>
-					Attempts: ${gd.attempts !== undefined ? gd.attempts : "-"}<br>
-					Distance: ${gd.distance !== undefined ? gd.distance : "-"}
-				</div>`;
+				gameDataHtml = renderGameDataBox(gameData[i]);
 			}
 			itemsForm.innerHTML += `
 				<div style="background: linear-gradient(90deg, #e3f0ff 0%, #f9f9f9 100%); border: 1px solid #b3c6e0; border-radius: 10px; margin-bottom: 14px; padding: 14px; box-shadow: 0 2px 8px rgba(180,200,230,0.08);">
@@ -797,13 +885,7 @@ function colorLevelForm(userId = null, existingData = null) {
 		for (let i = 0; i < count; i++) {
 			let gameDataHtml = "";
 			if (gameData && gameData[i]) {
-				const gd = gameData[i];
-				gameDataHtml = `<div class='gamedata-box' style='margin-top:6px;padding:6px;background:#f6f6f6;border-radius:6px;'>
-					<strong>Game Data:</strong><br>
-					Score Change: ${gd.scoreChange ?? "-"}<br>
-					Attempts: ${gd.attempts ?? "-"}<br>
-					Distance: ${gd.distance ?? "-"}
-				</div>`;
+				gameDataHtml = renderGameDataBox(gameData[i]);
 			}
 			itemsForm.innerHTML += `
 				<div style="background: linear-gradient(90deg, #fffbe3 0%, #f9f9f9 100%); border: 1px solid #e0d6b3; border-radius: 10px; margin-bottom: 14px; padding: 14px; box-shadow: 0 2px 8px rgba(230,220,180,0.08);">
@@ -922,13 +1004,7 @@ function faceLevelForm(userId = null, existingData = null) {
 		for (let i = 0; i < count; i++) {
 			let gameDataHtml = "";
 			if (gameData && gameData[i]) {
-				const gd = gameData[i];
-				gameDataHtml = `<div class='gamedata-box' style='margin-top:6px;padding:6px;background:#f6f6f6;border-radius:6px;'>
-					<strong>Game Data:</strong><br>
-					Score Change: ${gd.scoreChange ?? "-"}<br>
-					Attempts: ${gd.attempts ?? "-"}<br>
-					Distance: ${gd.distance ?? "-"}
-				</div>`;
+				gameDataHtml = renderGameDataBox(gameData[i]);
 			}
 			itemsForm.innerHTML += `
 				<div style="background: linear-gradient(90deg, #fbe3ff 0%, #f9f9f9 100%); border: 1px solid #e0b3d6; border-radius: 10px; margin-bottom: 14px; padding: 14px; box-shadow: 0 2px 8px rgba(230,180,220,0.08);">
@@ -1486,54 +1562,24 @@ async function listUsersScreen() {
 			if (userData.gameData) {
 				const allGameData = [];
 
-				// Add E-Level game data
-				if (userData.gameData.e && Array.isArray(userData.gameData.e)) {
-					userData.gameData.e.forEach((item, idx) => {
+				// Add game data. Support both Firebase arrays and numeric-keyed objects
+				// so exports also remain compatible with existing/legacy records.
+				[
+					["E-Level", userData.gameData.e],
+					["Color-Level", userData.gameData.color],
+					["Face-Level", userData.gameData.face],
+				].forEach(([levelName, levelItems]) => {
+					forEachIndexedGameItem(levelItems, (item, idx) => {
 						allGameData.push({
-							"Level Type": "E-Level",
+							"Level Type": levelName,
 							"Item Number": idx + 1,
-							"Score Change":
-								item.scoreChange ?? item.ScoreChange ?? "N/A",
+							"Score Change": item.scoreChange ?? item.ScoreChange ?? "N/A",
 							Attempts: item.attempts ?? "N/A",
 							Distance: item.distance ?? "N/A",
 							"Additional Data": JSON.stringify(item),
 						});
 					});
-				}
-
-				// Add Color-Level game data
-				if (
-					userData.gameData.color &&
-					Array.isArray(userData.gameData.color)
-				) {
-					userData.gameData.color.forEach((item, idx) => {
-						allGameData.push({
-							"Level Type": "Color-Level",
-							"Item Number": idx + 1,
-							"Score Change": item.scoreChange ?? "N/A",
-							Attempts: item.attempts ?? "N/A",
-							Distance: item.distance ?? "N/A",
-							"Additional Data": JSON.stringify(item),
-						});
-					});
-				}
-
-				// Add Face-Level game data
-				if (
-					userData.gameData.face &&
-					Array.isArray(userData.gameData.face)
-				) {
-					userData.gameData.face.forEach((item, idx) => {
-						allGameData.push({
-							"Level Type": "Face-Level",
-							"Item Number": idx + 1,
-							"Score Change": item.scoreChange ?? "N/A",
-							Attempts: item.attempts ?? "N/A",
-							Distance: item.distance ?? "N/A",
-							"Additional Data": JSON.stringify(item),
-						});
-					});
-				}
+				});
 
 				if (allGameData.length > 0) {
 					const gameDataWS =
@@ -1554,7 +1600,54 @@ async function listUsersScreen() {
 				}
 			}
 
-			// 6. Summary Sheet
+			// 6. Per-click History Sheet
+			if (userData.gameData) {
+				const clickHistoryData = [];
+				const levelDefinitions = [
+					["E-Level", userData.gameData.e],
+					["Color-Level", userData.gameData.color],
+					["Face-Level", userData.gameData.face],
+				];
+
+				levelDefinitions.forEach(([levelName, levelItems]) => {
+					forEachIndexedGameItem(levelItems, (item, itemIdx) => {
+						normalizeClickHistory(item.clicks).forEach((click, clickIdx) => {
+							clickHistoryData.push({
+								"Level Type": levelName,
+								"Item Number": itemIdx + 1,
+								"Attempt Number": click.attempt ?? clickIdx + 1,
+								"Clicked Item": click.clickedItem || "N/A",
+								Distance: click.distance ?? "N/A",
+								Correct:
+									click.isCorrect === true
+										? "Yes"
+										: click.isCorrect === false
+											? "No"
+											: "N/A",
+							});
+						});
+					});
+				});
+
+				if (clickHistoryData.length > 0) {
+					const clickHistoryWS = window.XLSX.utils.json_to_sheet(clickHistoryData);
+					clickHistoryWS["!cols"] = [
+						{ wch: 15 },
+						{ wch: 12 },
+						{ wch: 15 },
+						{ wch: 15 },
+						{ wch: 14 },
+						{ wch: 10 },
+					];
+					window.XLSX.utils.book_append_sheet(
+						wb,
+						clickHistoryWS,
+						"Click History"
+					);
+				}
+			}
+
+			// 7. Summary Sheet
 			const summary = [
 				{
 					"Export Information": "User Data Export",
@@ -1595,7 +1688,7 @@ async function listUsersScreen() {
 
 			// Show success message
 			alert(
-				`📊 Excel file downloaded successfully!\nFilename: ${fileName}\n\nIncludes:\n✅ User Information\n✅ E-Level Data\n✅ Color-Level Data\n✅ Face-Level Data\n✅ Game Performance Data\n✅ Summary Report`
+				`📊 Excel file downloaded successfully!\nFilename: ${fileName}\n\nIncludes:\n✅ User Information\n✅ E-Level Data\n✅ Color-Level Data\n✅ Face-Level Data\n✅ Game Performance Data\n✅ Per-Click History\n✅ Summary Report`
 			);
 		}
 	} else {

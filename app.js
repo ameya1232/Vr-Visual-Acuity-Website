@@ -716,28 +716,32 @@ function renderGameDataBox(gameData) {
 
 	const clickHistoryHtml = clicks.length
 		? `<div style="margin-top:10px;">
-			<strong>All Clicks:</strong>
+			<strong>All Attempts:</strong>
 			<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
 				${clicks
 					.map((click, index) => {
 						const attempt = click.attempt ?? index + 1;
-						const clickedItem = click.clickedItem || "unknown";
 						const isCorrect = click.isCorrect === true;
-						return `<div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:7px 9px;background:${
+						const resultLabel =
+							click.isCorrect === true
+								? "✓ Correct"
+								: click.isCorrect === false
+									? "✗ Incorrect"
+									: "Unknown";
+						return `<div style="display:grid;grid-template-columns:minmax(90px,auto) 1fr auto;gap:12px;align-items:center;padding:7px 9px;background:${
 							isCorrect ? "#eaf8ee" : "#fff0f0"
 						};border:1px solid ${isCorrect ? "#a7d8b4" : "#efb0b0"};border-radius:7px;">
-							<span><strong>#${attempt}</strong></span>
-							<span style="text-transform:capitalize;">${clickedItem}</span>
+							<span><strong>Attempt ${attempt}</strong></span>
 							<span>Distance: <strong>${formatGameValue(click.distance)}</strong></span>
-							<span style="font-weight:700;">${isCorrect ? "✓ Correct" : "✗ Incorrect"}</span>
+							<span style="font-weight:700;">${resultLabel}</span>
 						</div>`;
 					})
 					.join("")}
 			</div>
 		</div>`
 		: hasClickHistoryField
-			? `<div style="margin-top:8px;color:#666;font-size:0.9rem;">No per-click history was recorded for this result.</div>`
-			: `<div style="margin-top:8px;color:#666;font-size:0.9rem;">Per-click history is not available for this older result.</div>`;
+			? `<div style="margin-top:8px;color:#666;font-size:0.9rem;">No attempt history was recorded for this result.</div>`
+			: `<div style="margin-top:8px;color:#666;font-size:0.9rem;">Attempt history is not available for this older result.</div>`;
 
 	return `<div class='gamedata-box' style='margin-top:6px;padding:10px;background:#f6f6f6;border-radius:6px;'>
 		<strong>Game Data:</strong><br>
@@ -1600,9 +1604,9 @@ async function listUsersScreen() {
 				}
 			}
 
-			// 6. Per-click History Sheet
+			// 6. Attempt History Sheet - one row for every click/attempt
 			if (userData.gameData) {
-				const clickHistoryData = [];
+				const attemptHistoryData = [];
 				const levelDefinitions = [
 					["C-Level", userData.gameData.e],
 					["Color-Level", userData.gameData.color],
@@ -1612,37 +1616,35 @@ async function listUsersScreen() {
 				levelDefinitions.forEach(([levelName, levelItems]) => {
 					forEachIndexedGameItem(levelItems, (item, itemIdx) => {
 						normalizeClickHistory(item.clicks).forEach((click, clickIdx) => {
-							clickHistoryData.push({
+							attemptHistoryData.push({
 								"Level Type": levelName,
-								"Item Number": itemIdx + 1,
+								"Test Case Number": itemIdx + 1,
 								"Attempt Number": click.attempt ?? clickIdx + 1,
-								"Clicked Item": click.clickedItem || "N/A",
 								Distance: click.distance ?? "N/A",
-								Correct:
+								Result:
 									click.isCorrect === true
-										? "Yes"
+										? "Correct"
 										: click.isCorrect === false
-											? "No"
+											? "Incorrect"
 											: "N/A",
 							});
 						});
 					});
 				});
 
-				if (clickHistoryData.length > 0) {
-					const clickHistoryWS = window.XLSX.utils.json_to_sheet(clickHistoryData);
-					clickHistoryWS["!cols"] = [
-						{ wch: 15 },
-						{ wch: 12 },
-						{ wch: 15 },
-						{ wch: 15 },
-						{ wch: 14 },
-						{ wch: 10 },
+				if (attemptHistoryData.length > 0) {
+					const attemptHistoryWS = window.XLSX.utils.json_to_sheet(attemptHistoryData);
+					attemptHistoryWS["!cols"] = [
+						{ wch: 15 }, // Level Type
+						{ wch: 18 }, // Test Case Number
+						{ wch: 15 }, // Attempt Number
+						{ wch: 14 }, // Distance
+						{ wch: 12 }, // Result
 					];
 					window.XLSX.utils.book_append_sheet(
 						wb,
-						clickHistoryWS,
-						"Click History"
+						attemptHistoryWS,
+						"Attempt History"
 					);
 				}
 			}
@@ -1688,7 +1690,7 @@ async function listUsersScreen() {
 
 			// Show success message
 			alert(
-				`📊 Excel file downloaded successfully!\nFilename: ${fileName}\n\nIncludes:\n✅ User Information\n✅ C-Level Data\n✅ Color-Level Data\n✅ Face-Level Data\n✅ Game Performance Data\n✅ Per-Click History\n✅ Summary Report`
+				`📊 Excel file downloaded successfully!\nFilename: ${fileName}\n\nIncludes:\n✅ User Information\n✅ C-Level Data\n✅ Color-Level Data\n✅ Face-Level Data\n✅ Game Performance Data\n✅ Attempt History\n✅ Summary Report`
 			);
 		}
 	} else {

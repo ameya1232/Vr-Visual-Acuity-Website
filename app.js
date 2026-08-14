@@ -546,7 +546,7 @@ function createUserScreen() {
 					<h3 style="font-size:1.5rem;font-weight:800;color:#000;margin-bottom:20px;font-family:'Comic Sans MS', cursive;text-align:center;">⚡ Choose Data Level Type:</h3>
 					<div style="display:grid;grid-template-columns:1fr;gap:15px;">
 						<button id="eLevelBtn" class="level-btn e-level" style="padding:15px;font-size:1.1rem;background:#fff;color:#000;border:4px solid #000;border-radius:15px;font-weight:800;cursor:pointer;font-family:'Comic Sans MS', cursive;transition:all 0.3s ease;position:relative;overflow:hidden;">
-							<span style="position:relative;z-index:2;">📐 E-LEVEL DATA</span>
+							<span style="position:relative;z-index:2;">📐 C-LEVEL DATA</span>
 							<div class="btn-shine" style="position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent);transition:left 0.5s ease;"></div>
 						</button>
 						<button id="colorLevelBtn" class="level-btn color-level" style="padding:15px;font-size:1.1rem;background:#fff;color:#000;border:4px solid #000;border-radius:15px;font-weight:800;cursor:pointer;font-family:'Comic Sans MS', cursive;transition:all 0.3s ease;position:relative;overflow:hidden;">
@@ -753,7 +753,7 @@ function eLevelForm(userId = null, existingData = null) {
 	let countValue = existingData ? existingData.length : 0;
 	levelForm.innerHTML = `
 	<div class="level-section">
-	  <h3>E Level</h3>
+	  <h3>C Level</h3>
 	  <label>Number of Items: <input type="number" id="eLevelCount" min="0" max="100" value="${countValue}"></label>
 	  <form id="eLevelItems"></form>
 	  <button id="saveELevelBtn" style="display:none;">Save</button>
@@ -817,7 +817,7 @@ function eLevelForm(userId = null, existingData = null) {
 				await db
 					.ref(`users/${userId}/updatedAt`)
 					.set(new Date().toISOString());
-				alert("E Level data updated!");
+				alert("C Level data updated!");
 				editUserScreen(userId, {
 					...(await db.ref(`users/${userId}`).get()).val(),
 				});
@@ -843,7 +843,7 @@ function eLevelForm(userId = null, existingData = null) {
 					updatedAt: now,
 					eLevel: items,
 				});
-				alert("E Level data saved!");
+				alert("C Level data saved!");
 				homeScreen();
 			}
 		} catch (error) {
@@ -1123,7 +1123,7 @@ function editUserScreen(userId, userData = {}) {
 	window.currentUserData = userData;
 	appDiv.innerHTML = `
 		<h2>Edit User: ${userData.username ? userData.username : userId}</h2>
-		<button id="eLevelBtn">E Level</button>
+		<button id="eLevelBtn">C Level</button>
 		<button id="colorLevelBtn">Color Level</button>
 		<button id="faceLevelBtn">Face Level</button>
 		<button id="backBtn">Back</button>
@@ -1290,7 +1290,7 @@ async function listUsersScreen() {
 								? "✅"
 								: "❌"
 						}</div>
-						<div style="font-weight:700;">E-Level</div>
+						<div style="font-weight:700;">C-Level</div>
 						<div style="font-size:0.8rem;">${
 							value.eLevel ? value.eLevel.length : 0
 						} items</div>
@@ -1333,7 +1333,7 @@ async function listUsersScreen() {
 					<div style="margin-top:10px;padding:8px;background:#e6fffa;border-radius:8px;border:2px solid #000;font-family:'Comic Sans MS', cursive;">
 						<strong style="color:#000;">🎮 Game Data Available:</strong><br>
 						<div style="font-size:0.9rem;margin-top:5px;">
-							${value.gameData.e ? "🎯 E-Level performance data<br>" : ""}
+							${value.gameData.e ? "🎯 C-Level performance data<br>" : ""}
 							${value.gameData.color ? "🎨 Color-Level performance data<br>" : ""}
 							${value.gameData.face ? "👤 Face-Level performance data<br>" : ""}
 						</div>
@@ -1391,7 +1391,7 @@ async function listUsersScreen() {
 						: "N/A",
 				},
 				{
-					Field: "Has E-Level Data",
+					Field: "Has C-Level Data",
 					Value:
 						userData.eLevel &&
 						Array.isArray(userData.eLevel) &&
@@ -1435,7 +1435,7 @@ async function listUsersScreen() {
 				"User Information"
 			);
 
-			// 2. E-Level Data Sheet
+			// 2. C-Level Data Sheet
 			if (
 				userData.eLevel &&
 				Array.isArray(userData.eLevel) &&
@@ -1445,7 +1445,7 @@ async function listUsersScreen() {
 					const gameData = userData.gameData?.e?.[idx] || {};
 					return {
 						"Item Number": idx + 1,
-						"E-Level Value (cm)": value,
+						"C-Level Value (cm)": value,
 						"Game Score Change":
 							gameData.scoreChange ??
 							gameData.ScoreChange ??
@@ -1458,7 +1458,7 @@ async function listUsersScreen() {
 				const eLevelWS = window.XLSX.utils.json_to_sheet(eLevelData);
 				eLevelWS["!cols"] = [
 					{ wch: 12 }, // Item Number
-					{ wch: 18 }, // E-Level Value
+					{ wch: 18 }, // C-Level Value
 					{ wch: 18 }, // Score Change
 					{ wch: 15 }, // Attempts
 					{ wch: 15 }, // Distance
@@ -1466,7 +1466,7 @@ async function listUsersScreen() {
 				window.XLSX.utils.book_append_sheet(
 					wb,
 					eLevelWS,
-					"E-Level Data"
+					"C-Level Data"
 				);
 			}
 
@@ -1565,7 +1565,7 @@ async function listUsersScreen() {
 				// Add game data. Support both Firebase arrays and numeric-keyed objects
 				// so exports also remain compatible with existing/legacy records.
 				[
-					["E-Level", userData.gameData.e],
+					["C-Level", userData.gameData.e],
 					["Color-Level", userData.gameData.color],
 					["Face-Level", userData.gameData.face],
 				].forEach(([levelName, levelItems]) => {
@@ -1604,7 +1604,7 @@ async function listUsersScreen() {
 			if (userData.gameData) {
 				const clickHistoryData = [];
 				const levelDefinitions = [
-					["E-Level", userData.gameData.e],
+					["C-Level", userData.gameData.e],
 					["Color-Level", userData.gameData.color],
 					["Face-Level", userData.gameData.face],
 				];
@@ -1653,7 +1653,7 @@ async function listUsersScreen() {
 					"Export Information": "User Data Export",
 					Username: userData.username || "N/A",
 					"Export Date": new Date().toLocaleString(),
-					"Total E-Level Items": userData.eLevel
+					"Total C-Level Items": userData.eLevel
 						? userData.eLevel.length
 						: 0,
 					"Total Color-Level Items": userData.colorLevel
@@ -1671,7 +1671,7 @@ async function listUsersScreen() {
 				{ wch: 20 }, // Export Information
 				{ wch: 15 }, // Username
 				{ wch: 20 }, // Export Date
-				{ wch: 18 }, // Total E-Level Items
+				{ wch: 18 }, // Total C-Level Items
 				{ wch: 20 }, // Total Color-Level Items
 				{ wch: 18 }, // Total Face-Level Items
 				{ wch: 18 }, // Game Data Available
@@ -1688,7 +1688,7 @@ async function listUsersScreen() {
 
 			// Show success message
 			alert(
-				`📊 Excel file downloaded successfully!\nFilename: ${fileName}\n\nIncludes:\n✅ User Information\n✅ E-Level Data\n✅ Color-Level Data\n✅ Face-Level Data\n✅ Game Performance Data\n✅ Per-Click History\n✅ Summary Report`
+				`📊 Excel file downloaded successfully!\nFilename: ${fileName}\n\nIncludes:\n✅ User Information\n✅ C-Level Data\n✅ Color-Level Data\n✅ Face-Level Data\n✅ Game Performance Data\n✅ Per-Click History\n✅ Summary Report`
 			);
 		}
 	} else {
